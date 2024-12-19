@@ -11,6 +11,7 @@ class BurpExtender(IBurpExtender, IHttpListener):
         self._helpers = callbacks.getHelpers()
         callbacks.setExtensionName("reflected-headers detector")
         callbacks.registerHttpListener(self)
+        self._reported_reflections = set()  # Set to track reported reflections
         print("[INFO] Header Reflection Checker loaded and running!")
 
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
@@ -41,34 +42,38 @@ class BurpExtender(IBurpExtender, IHttpListener):
                     key = key.strip()
                     value = value.strip()
 
-
                     # Skip the Host header
                     if key.lower() in ["host", "Sec-Fetch-Dest", "Sec-Fetch-Site", "Accept"]:
-                        print("[+]not logged header: "+key)
+                        print("[+]not logged header: " + key)
                         continue
 
                     # Skip if the value matches any of the specified strings
                     if value.lower() in ["script", "no-cors", "style", "true"]:
-                        print("[+]not logged value: "+value)
+                        print("[+]not logged value: " + value)
                         continue
 
                     # Skip if the value is less than 3 characters
                     if len(value) < 3:
                         continue
 
-
                     # Check if the value is reflected in the response body
                     if value and re.search(re.escape(value), responseBody, re.IGNORECASE):
-                        print("[DEBUG] Reflection detected! Header: {}, Value: {}".format(key, value))
-                        reflection_detected = True
-                        self.add_issue(messageInfo, key, value)
+                        # Use string concatenation instead of f-string
+                        reflection_key = "%s:%s" % (key, value)
+                        if reflection_key not in self._reported_reflections:
+                            print("[DEBUG] Reflection detected! Header: %s, Value: %s" % (key, value))
+                            reflection_detected = True
+                            self.add_issue(messageInfo, key, value)
+                            self._reported_reflections.add(reflection_key)  # Add to reported reflections
+                        else:
+                            print("[DEBUG] Reflection already reported: Header: %s, Value: %s" % (key, value))
 
             if not reflection_detected:
                 pass
                 # print("[DEBUG] No reflections detected in the response.")
 
         except Exception as e:
-            print("[ERROR] Exception occurred: {}".format(e))
+            print("[ERROR] Exception occurred: %s" % e)
 
     def add_issue(self, messageInfo, key, value):
         try:
@@ -77,13 +82,13 @@ class BurpExtender(IBurpExtender, IHttpListener):
                 url=self._helpers.analyzeRequest(messageInfo).getUrl(),
                 requestResponse=messageInfo,
                 name="Header Reflection Detected",
-                detail="The value '{}' of the header '{}' was reflected in the response.".format(value,key),
+                detail="The value '%s' of the header '%s' was reflected in the response." % (value, key),
                 severity="Low"
             )
             self._callbacks.addScanIssue(issue)
-            print("[INFO] Issue added to Site map: Header Reflection Detected for header '{}'.".format(key))
+            print("[INFO] Issue added to Site map: Header Reflection Detected for header '%s'." % key)
         except Exception as e:
-            print("[ERROR] Failed to add issue: {}".format(e))
+            print("[ERROR] Failed to add issue: %s" % e)
 
 class CustomScanIssue(IScanIssue):
     def __init__(self, httpService, url, requestResponse, name, detail, severity):
