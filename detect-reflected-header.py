@@ -22,7 +22,7 @@ class BurpExtender(IBurpExtender, IHttpListener):
             request = messageInfo.getRequest()
             response = messageInfo.getResponse()
             if not response:
-                print("[DEBUG] No response available for processing.")
+                # print("[DEBUG] No response available for processing.")
                 return
 
             analyzedRequest = self._helpers.analyzeRequest(request)
@@ -60,7 +60,8 @@ class BurpExtender(IBurpExtender, IHttpListener):
                         self.add_issue(messageInfo, key, value)
 
             if not reflection_detected:
-                print("[DEBUG] No reflections detected in the response.")
+                pass
+                # print("[DEBUG] No reflections detected in the response.")
 
         except Exception as e:
             print("[ERROR] Exception occurred: {}".format(e))
