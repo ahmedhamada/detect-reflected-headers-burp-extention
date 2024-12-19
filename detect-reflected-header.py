@@ -41,17 +41,21 @@ class BurpExtender(IBurpExtender, IHttpListener):
                     key = key.strip()
                     value = value.strip()
 
+
                     # Skip the Host header
-                    if key.lower() == "host":
+                    if key.lower() in ["host", "Sec-Fetch-Dest", "Sec-Fetch-Site", "Accept"]:
+                        print("[+]not logged header: "+key)
+                        continue
+
+                    # Skip if the value matches any of the specified strings
+                    if value.lower() in ["script", "no-cors", "style", "true"]:
+                        print("[+]not logged value: "+value)
                         continue
 
                     # Skip if the value is less than 3 characters
                     if len(value) < 3:
                         continue
 
-                    # Skip if the value matches any of the specified strings
-                    if value.lower() in ["script", "no-cors", "style"]:
-                        continue
 
                     # Check if the value is reflected in the response body
                     if value and re.search(re.escape(value), responseBody, re.IGNORECASE):
